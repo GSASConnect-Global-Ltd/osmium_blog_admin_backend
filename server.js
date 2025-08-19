@@ -35,7 +35,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:3001"], // frontend URL
+  origin: ["http://localhost:3000", "http://localhost:3001", "https://osmium-blog-admin.onrender.com","https://osmium-latest.onrender.com"], // frontend URL
   credentials: true
 }));
 
