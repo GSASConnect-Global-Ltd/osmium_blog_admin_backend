@@ -1,4 +1,3 @@
-
 import multer from "multer";
 import path from "path";
 
@@ -8,7 +7,11 @@ const storage = multer.diskStorage({
     cb(null, "uploads/"); // local uploads folder
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname); // keep filename readable
+    // get extension (e.g. .jpg, .png)
+    const ext = path.extname(file.originalname);
+
+    // name format: blog-<timestamp><ext>
+    cb(null, `blog-${Date.now()}${ext}`);
   },
 });
 

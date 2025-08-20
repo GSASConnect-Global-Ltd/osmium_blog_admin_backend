@@ -1,4 +1,6 @@
 
+// C:\express\osmium_blog_backend\osmium_blog_express_application\controllers\blogController.js
+
 import mongoose from "mongoose";
 import Blog from "../models/Blog.js";
 
@@ -138,3 +140,43 @@ export const deleteBlog = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
+// @desc    Get dashboard stats
+// @route   GET /api/blogs/dashboard
+export const getDashboardStats = async (req, res) => {
+  try {
+    // Count total posts
+    const totalPosts = await Blog.countDocuments();
+
+    // Get distinct authors and categories
+    const authors = await Blog.distinct("author");
+    const categories = await Blog.distinct("category");
+
+    res.json({
+      totalPosts,
+      totalAuthors: authors.length,
+      totalCategories: categories.length,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching dashboard stats:", error.message);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+
+// @desc    Get latest 3 posts (or all if less than 3)
+// @route   GET /api/blogs/recent
+export const getRecentBlogs = async (req, res) => {
+  try {
+    const blogs = await Blog.find()
+      .sort({ createdAt: -1 }) // latest first
+      .limit(3); // get max 3
+
+    res.json(blogs);
+  } catch (error) {
+    console.error("❌ Error fetching recent blogs:", error.message);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
