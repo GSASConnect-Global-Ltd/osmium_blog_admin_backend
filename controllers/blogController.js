@@ -138,13 +138,23 @@ console.log("🖼️ Incoming files:", req.files);
 // @route   DELETE /api/blogs/:id
 export const deleteBlog = async (req, res) => {
   try {
-    const blog = await Blog.findById(req.params.id);
-    if (!blog) return res.status(404).json({ message: "Blog not found" });
+    const { id } = req.params;
+
+    // ✅ Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid blog ID" });
+    }
+
+    const blog = await Blog.findById(id);
+    if (!blog) {
+      return res.status(404).json({ message: "Blog not found" });
+    }
 
     await blog.deleteOne();
     res.json({ message: "Blog deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    console.error("❌ Error deleting blog:", error.message);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
