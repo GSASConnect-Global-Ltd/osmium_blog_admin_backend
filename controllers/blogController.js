@@ -9,6 +9,9 @@ import Blog from "../models/Blog.js";
 // @desc    Create a new blog post
 // @route   POST /api/blogs
 export const createBlog = async (req, res) => {
+  console.log("📨 Incoming request body:", req.body);
+console.log("🖼️ Incoming files:", req.files);
+
   try {
     const { title, summary, author, date, content, category } = req.body;
 
@@ -83,6 +86,9 @@ export const getBlogById = async (req, res) => {
 // @desc    Update blog by ID
 // @route   PUT /api/blogs/:id
 export const updateBlog = async (req, res) => {
+  console.log("📨 Incoming request body:", req.body);
+console.log("🖼️ Incoming files:", req.files);
+
   try {
     const { id } = req.params;
 

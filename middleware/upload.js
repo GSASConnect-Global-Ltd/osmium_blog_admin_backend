@@ -1,30 +1,40 @@
 import multer from "multer";
 import path from "path";
+import fs from "fs";
+
+// Ensure uploads folder exists
+const uploadDir = "uploads";
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+  console.log("📂 Created uploads folder");
+}
 
 // Storage config
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/"); // local uploads folder
+    console.log("📥 Saving file to:", uploadDir);
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    // get extension (e.g. .jpg, .png)
     const ext = path.extname(file.originalname);
-
-    // name format: blog-<timestamp><ext>
-    cb(null, `blog-${Date.now()}${ext}`);
+    const filename = `blog-${Date.now()}${ext}`;
+    console.log(`📝 Renaming file: ${file.originalname} -> ${filename}`);
+    cb(null, filename);
   },
 });
 
 // File filter (only images allowed)
 const fileFilter = (req, file, cb) => {
+  console.log("🔍 Checking file type:", file.mimetype);
   if (file.mimetype.startsWith("image/")) {
     cb(null, true);
   } else {
+    console.error("❌ File rejected:", file.originalname);
     cb(new Error("Only images are allowed!"), false);
   }
 };
 
-// ✅ allow up to 3 images
+// Allow up to 3 images
 const upload = multer({ storage, fileFilter });
 
-export const uploadBlogImages = upload.array("images", 3); // field name = "images"
+export const uploadBlogImages = upload.array("images", 3);
