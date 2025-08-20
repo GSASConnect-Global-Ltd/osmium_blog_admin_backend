@@ -19,13 +19,15 @@ const blogSchema = new mongoose.Schema(
       type: String,
       required: [true, "Date is required"],
     },
-    readTime: {
-      type: String,
-      required: [true, "Read time is required"],
-    },
+  
     category: {
       type: String,
       required: [true, "Category is required"],
+    },
+
+    content: {
+      type: String,
+      required: [true, "Content is required"], // ✅ main blog text
     },
     images: {
       type: [String], // array of image paths

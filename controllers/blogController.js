@@ -10,7 +10,7 @@ import Blog from "../models/Blog.js";
 // @route   POST /api/blogs
 export const createBlog = async (req, res) => {
   try {
-    const { title, summary, author, date, readTime, category } = req.body;
+    const { title, summary, author, date, content, category } = req.body;
 
     // Map uploaded files to paths
     const uploadedImages = req.files ? req.files.map((file) => `/uploads/${file.filename}`) : [];
@@ -27,7 +27,7 @@ export const createBlog = async (req, res) => {
       summary,
       author,
       date,
-      readTime,
+      content,
       category,
       images,
     });
@@ -91,7 +91,7 @@ export const updateBlog = async (req, res) => {
       return res.status(400).json({ message: "Invalid blog ID" });
     }
 
-    const { title, summary, author, date, readTime, category } = req.body;
+    const { title, summary, author, date, content, category } = req.body;
 
     // Handle uploaded images (if any)
     const uploadedImages = req.files ? req.files.map((file) => `/uploads/${file.filename}`) : [];
@@ -107,7 +107,8 @@ export const updateBlog = async (req, res) => {
     if (summary) blog.summary = summary;
     if (author) blog.author = author;
     if (date) blog.date = date;
-    if (readTime) blog.readTime = readTime;
+    if(content) blog.content = content; // ✅ update content
+  
     if (category) blog.category = category;
 
     // Update images (preserve old ones if not replaced)
