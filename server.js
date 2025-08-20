@@ -3,18 +3,17 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import mongoose from 'mongoose';
+import path from 'path';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoute.js';
 import protectedRoutes from "./routes/protectedRoute.js";
 import blogRoutes from './routes/blogRoute.js';
-import path from "path";
 
 dotenv.config();
 
 // Connect to MongoDB
 connectDB().then(async () => {
   try {
-    // Try to drop old slug index if it exists
     const collections = await mongoose.connection.db.listCollections().toArray();
     const blogCollection = collections.find(c => c.name === "blogs");
 
@@ -33,43 +32,37 @@ connectDB().then(async () => {
 
 const app = express();
 
-// Middleware
+// CORS
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:3001", "https://osmium-blog-admin.onrender.com","https://osmium-latest.onrender.com"], // frontend URL
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://osmium-blog-admin.onrender.com",
+    "https://osmium-latest.onrender.com"
+  ],
   credentials: true
 }));
 
 // Static folder for uploaded images
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
+// Cookies
 app.use(cookieParser());
 
-// ✅ Body parsers
-app.use((req, res, next) => {
-  const contentType = req.headers["content-type"] || "";
-
-  if (contentType.startsWith("multipart/form-data")) {
-    // let multer handle file uploads
-    return next();
-  }
-
-  if (contentType.includes("application/x-www-form-urlencoded")) {
-    return express.urlencoded({ extended: true })(req, res, next);
-  }
-
-  // default: JSON
-  return express.json()(req, res, next);
-});
+// ✅ Body parsers for JSON and URL-encoded (remove multipart check!)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Test route
 app.get('/', (req, res) => {
   res.send('API is running...');
 });
 
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/blogs', blogRoutes);
 
-// Protected routes (requires authentication)
+// Protected routes
 app.use("/api", protectedRoutes);
 
 const PORT = process.env.PORT || 5000;
