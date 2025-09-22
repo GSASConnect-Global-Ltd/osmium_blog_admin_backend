@@ -9,9 +9,9 @@ import {
 const router = express.Router();
 
 // Jobs
-router.get("/hirings", getAllJobs);
-router.get("/hirings/dashboard", getDashboardStats);
-router.post("/hirings", createJob);
+router.get("/", getAllJobs);
+router.get("/dashboard", getDashboardStats);
+router.post("/", createJob);
 
 // Job applications
 router.post("/hirings/:id", applyJob);
