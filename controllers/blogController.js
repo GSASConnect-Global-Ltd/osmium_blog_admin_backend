@@ -1,24 +1,14 @@
-
-// C:\express\osmium_blog_backend\osmium_blog_express_application\controllers\blogController.js
-
-import mongoose from "mongoose";
 import Blog from "../models/Blog.js";
+import slugify from "slugify";
 
-
-
-// @desc    Create a new blog post
-// @route   POST /api/blogs
+// -------------------- CREATE BLOG --------------------
 export const createBlog = async (req, res) => {
-  console.log("📨 Incoming request body:", req.body);
-console.log("🖼️ Incoming files:", req.files);
-
   try {
     const { title, summary, author, date, content, category } = req.body;
+    const uploadedImages = req.files
+      ? req.files.map((file) => `/uploads/${file.filename}`)
+      : [];
 
-    // Map uploaded files to paths
-    const uploadedImages = req.files ? req.files.map((file) => `/uploads/${file.filename}`) : [];
-
-    // Ensure exactly 3 slots (fill missing ones with null)
     const images = [
       uploadedImages[0] || null,
       uploadedImages[1] || null,
@@ -33,46 +23,34 @@ console.log("🖼️ Incoming files:", req.files);
       content,
       category,
       images,
+      slug: slugify(title, { lower: true, strict: true }),
     });
 
     await blog.save();
-
     res.status(201).json({ message: "Blog created successfully", blog });
   } catch (error) {
     console.error("❌ Blog creation error:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// @desc    Get all blog posts
-// @route   GET /api/blogs
+// -------------------- GET ALL BLOGS --------------------
 export const getBlogs = async (req, res) => {
   try {
     const blogs = await Blog.find().sort({ createdAt: -1 });
     res.json(blogs);
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-// @desc    Get single blog by ID
-// @route   GET /api/blogs/:id
-// @desc    Get single blog by ID
-// @route   GET /api/blogs/:id
-export const getBlogById = async (req, res) => {
+// -------------------- GET BLOG BY SLUG --------------------
+export const getBlogBySlug = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { slug } = req.params;
+    const blog = await Blog.findOne({ slug });
 
-    // ✅ Validate ObjectId before querying
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid blog ID" });
-    }
-
-    const blog = await Blog.findById(id);
-
-    if (!blog) {
-      return res.status(404).json({ message: "Blog not found" });
-    }
+    if (!blog) return res.status(404).json({ message: "Blog not found" });
 
     res.json(blog);
   } catch (error) {
@@ -81,43 +59,28 @@ export const getBlogById = async (req, res) => {
   }
 };
 
-
-
-// @desc    Update blog by ID
-// @route   PUT /api/blogs/:id
-export const updateBlog = async (req, res) => {
-  console.log("📨 Incoming request body:", req.body);
-console.log("🖼️ Incoming files:", req.files);
-
+// -------------------- UPDATE BLOG BY SLUG --------------------
+export const updateBlogBySlug = async (req, res) => {
   try {
-    const { id } = req.params;
-
-    // ✅ Validate ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid blog ID" });
-    }
-
+    const { slug } = req.params;
     const { title, summary, author, date, content, category } = req.body;
+    const uploadedImages = req.files
+      ? req.files.map((file) => `/uploads/${file.filename}`)
+      : [];
 
-    // Handle uploaded images (if any)
-    const uploadedImages = req.files ? req.files.map((file) => `/uploads/${file.filename}`) : [];
+    const blog = await Blog.findOne({ slug });
+    if (!blog) return res.status(404).json({ message: "Blog not found" });
 
-    // Find existing blog
-    const blog = await Blog.findById(id);
-    if (!blog) {
-      return res.status(404).json({ message: "Blog not found" });
+    if (title) {
+      blog.title = title;
+      blog.slug = slugify(title, { lower: true, strict: true });
     }
-
-    // Update text fields (only if provided)
-    if (title) blog.title = title;
     if (summary) blog.summary = summary;
     if (author) blog.author = author;
     if (date) blog.date = date;
-    if(content) blog.content = content; // ✅ update content
-  
+    if (content) blog.content = content;
     if (category) blog.category = category;
 
-    // Update images (preserve old ones if not replaced)
     blog.images = [
       uploadedImages[0] || blog.images[0] || null,
       uploadedImages[1] || blog.images[1] || null,
@@ -126,29 +89,21 @@ console.log("🖼️ Incoming files:", req.files);
 
     await blog.save();
 
-    res.json({ message: "Blog updated successfully", blog });
+    // ✅ Return only the updated blog
+    res.json(blog);
   } catch (error) {
     console.error("❌ Error updating blog:", error.message);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-
-// @desc    Delete blog by ID
-// @route   DELETE /api/blogs/:id
-export const deleteBlog = async (req, res) => {
+// -------------------- DELETE BLOG BY SLUG --------------------
+export const deleteBlogBySlug = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { slug } = req.params;
 
-    // ✅ Validate ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid blog ID" });
-    }
-
-    const blog = await Blog.findById(id);
-    if (!blog) {
-      return res.status(404).json({ message: "Blog not found" });
-    }
+    const blog = await Blog.findOne({ slug });
+    if (!blog) return res.status(404).json({ message: "Blog not found" });
 
     await blog.deleteOne();
     res.json({ message: "Blog deleted successfully" });
@@ -158,15 +113,10 @@ export const deleteBlog = async (req, res) => {
   }
 };
 
-
-// @desc    Get dashboard stats
-// @route   GET /api/blogs/dashboard
+// -------------------- DASHBOARD STATS --------------------
 export const getDashboardStats = async (req, res) => {
   try {
-    // Count total posts
     const totalPosts = await Blog.countDocuments();
-
-    // Get distinct authors and categories
     const authors = await Blog.distinct("author");
     const categories = await Blog.distinct("category");
 
@@ -181,14 +131,12 @@ export const getDashboardStats = async (req, res) => {
   }
 };
 
-
-// @desc    Get latest 3 posts (or all if less than 3)
-// @route   GET /api/blogs/recent
+// -------------------- RECENT BLOGS --------------------
 export const getRecentBlogs = async (req, res) => {
   try {
     const blogs = await Blog.find()
-      .sort({ createdAt: -1 }) // latest first
-      .limit(3); // get max 3
+      .sort({ createdAt: -1 })
+      .limit(3);
 
     res.json(blogs);
   } catch (error) {
@@ -196,4 +144,3 @@ export const getRecentBlogs = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-

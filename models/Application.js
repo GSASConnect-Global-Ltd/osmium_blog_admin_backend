@@ -1,3 +1,4 @@
+//C:\express\osmium_blog_backend\osmium_blog_express_application\models\Application.js
 import mongoose from "mongoose";
 
 const applicationSchema = new mongoose.Schema({

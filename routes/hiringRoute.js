@@ -1,3 +1,4 @@
+//C:\express\osmium_blog_backend\osmium_blog_express_application\routes\hiringRoute.js
 import express from "express";
 import {
   getAllJobs,
@@ -14,6 +15,6 @@ router.get("/dashboard", getDashboardStats);
 router.post("/", createJob);
 
 // Job applications
-router.post("/hirings/:id", applyJob);
+router.post("/:id", applyJob);
 
 export default router;

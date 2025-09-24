@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import mongoose from "mongoose";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createMail } from "./services/mailServices.js";
 
 import connectDB from "./config/db.js";
 
@@ -20,7 +21,7 @@ dotenv.config();
 connectDB().then(async () => {
   try {
     const collections = await mongoose.connection.db.listCollections().toArray();
-    const blogCollection = collections.find(c => c.name === "blogs");
+    const blogCollection = collections.find((c) => c.name === "blogs");
 
     if (blogCollection) {
       await mongoose.connection.db.collection("blogs").dropIndex("slug_1");
@@ -38,26 +39,26 @@ connectDB().then(async () => {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-
 const app = express();
 
 // CORS
-app.use(cors({
-  origin: [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "https://osmium-blog-admin.onrender.com",
-    "https://osmium-latest.onrender.com"
-  ],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "https://osmium-blog-admin.onrender.com",
+      "https://osmium-latest.onrender.com",
+    ],
+    credentials: true,
+  })
+);
 
 // Cookies
 app.use(cookieParser());
 
 // Static folder for uploads (CVs, documents, images)
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
 
 // Body parsers
 app.use(express.json());
@@ -67,6 +68,28 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/", (req, res) => {
   res.send("API is running...");
 });
+
+// ------------------- EMAIL TEST ROUTE -------------------
+app.post("/api/test-mail", async (req, res) => {
+  try {
+    const mail = await createMail({
+      email: req.body.email || "oluwatosinissa2000@gmail.com", // fallback email
+      subject: "🚀 Test Mail from Express + Mailtrap",
+      template: "welcome", // must exist in /views/email/welcome.hbs
+      context: {
+        username: "Yusuf",
+        appName: "Osmium Blog",
+      },
+      text: "This is a plain text test email.",
+    });
+
+    res.json({ message: "✅ Mail processed", mail });
+  } catch (err) {
+    console.error("❌ Mail test error:", err.message);
+    res.status(500).json({ error: "Failed to send mail" });
+  }
+});
+// --------------------------------------------------------
 
 // Routes
 app.use("/api/auth", authRoutes);
