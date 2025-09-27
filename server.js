@@ -49,6 +49,7 @@ app.use(
       "http://localhost:3001",
       "https://osmium-blog-admin.onrender.com",
       "https://osmium-latest.onrender.com",
+      "https://orrel.com.ng"
     ],
     credentials: true,
   })
