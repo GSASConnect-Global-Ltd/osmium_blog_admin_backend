@@ -33,19 +33,10 @@ jobs:
         if [ "${{ github.ref_name }}" == "main" ]; then
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
             cd /var/www/orrel-admin-backend &&
-            git fetch --all &&
-            git reset --hard origin/main &&
-            npm install --production &&
+            git pull origin main &&
+            npm install --omit=dev &&
             cp .env.prod .env &&
-            export NODE_ENV=production &&
-            
-            # Check if PM2 app exists, start if not, restart if exists
-            if pm2 id orrel-admin-backend > /dev/null 2>&1; then
-              pm2 restart orrel-admin-backend
-            else
-              pm2 start server.js --name orrel-admin-backend
-              pm2 save
-              pm2 startup
-            fi
+            pm2 reload server.js --name orrel-admin-backend --update-env || pm2 start server.js --name orrel-admin-backend
+            pm2 save
           "
         fi
