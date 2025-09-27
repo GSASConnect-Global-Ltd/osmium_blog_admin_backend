@@ -32,11 +32,30 @@ jobs:
       run: |
         if [ "${{ github.ref_name }}" == "main" ]; then
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_IP }} "
-            cd /var/www/orrel-admin-backend &&
-            git pull origin main &&
-            npm install --omit=dev &&
-            cp .env.prod .env &&
-            pm2 reload server.js --name orrel-admin-backend --update-env || pm2 start server.js --name orrel-admin-backend
+            set -e  # Exit on error
+            
+            cd /var/www/orrel-admin-backend
+            
+            # Pull latest changes
+            git fetch origin
+            git reset --hard origin/main
+            
+            # Install dependencies
+            npm install --omit=dev
+            
+            # Copy environment file if exists
+            if [ -f .env.prod ]; then
+              cp .env.prod .env
+              echo '✅ .env.prod copied to .env'
+            else
+              echo 'ℹ️ .env.prod not found, using existing .env'
+            fi
+            
+            # Deploy with PM2
+            echo '🚀 Deploying with PM2...'
+            pm2 delete orrel-admin-backend 2>/dev/null || echo 'ℹ️ No existing process to delete'
+            pm2 start server.js --name orrel-admin-backend
             pm2 save
+            echo '✅ Deployment completed successfully!'
           "
         fi
