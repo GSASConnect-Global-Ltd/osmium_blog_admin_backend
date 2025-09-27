@@ -49,7 +49,8 @@ app.use(
       "http://localhost:3001",
       "https://osmium-blog-admin.onrender.com",
       "https://osmium-latest.onrender.com",
-      "https://orrel.com.ng"
+      "https://orrel.com.ng",
+      "https://www.orrel.com.ng/admin",
     ],
     credentials: true,
   })
