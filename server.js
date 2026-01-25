@@ -51,6 +51,8 @@ app.use(
       "https://osmium-latest.onrender.com",
       "https://orrel.com.ng",
       "https://orrel.com.ng/admin",
+      "https://orrelng.com",
+      "https://orrelng.com/admin",
     ],
     credentials: true,
   })
