@@ -41,19 +41,23 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+
+
 // CORS
+
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(",").map(origin => origin.trim())
+  : [];
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "https://osmium-blog-admin.onrender.com",
-      "https://osmium-latest.onrender.com",
-      "https://orrel.com.ng",
-      "https://orrel.com.ng/admin",
-      "https://orrelng.com",
-      "https://orrelng.com/admin",
-    ],
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
   })
 );
