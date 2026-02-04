@@ -86,4 +86,5 @@ jobs:
           # [ -f .env.dev ] && cp .env.dev .env
           pm2 restart orrel-admin-backend 2>/dev/null || \
           pm2 start npm --name 'orrel-admin-backend' -- start
+          pm2 save
           echo '✅ Orrel Admin Express app deployed!'
