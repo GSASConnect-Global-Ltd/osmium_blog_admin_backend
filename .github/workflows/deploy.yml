@@ -224,7 +224,122 @@
 #           echo "📊 Application status:"
 #           pm2 status
 
-name: Deploy to VPS Securely
+# name: Deploy to VPS Securely
+# on:
+#   push:
+#     branches: [main]
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v3
+      
+#       - name: Quick Security Check
+#         run: |
+#           # Quick check for obvious secrets
+#           if grep -r "AKIA[0-9A-Z]\{16\}\|sk_live_[0-9a-zA-Z]\{24\}" --include="*.js" --include="*.json" . 2>/dev/null; then
+#             echo "❌ SECURITY ALERT: Secrets found in code!"
+#             exit 1
+#           fi
+#           echo "✅ Basic security check passed"
+      
+#       - name: Deploy to Server
+#         uses: appleboy/ssh-action@v0.1.5
+#         with:
+#           host: ${{ secrets.VPS_IP }}
+#           port: 22222
+#           username: ${{ secrets.VPS_USER }}
+#           key: ${{ secrets.SSH_PRIVATE_KEY }}
+#           script: |
+#             set -e  # Exit on any error
+            
+#             echo "🔒 Starting secure deployment..."
+            
+#             # Configuration
+#             APP_NAME="orrel-admin-backend"
+#             APP_DIR="/srv/$APP_NAME"
+#             BACKUP_DIR="/home/admin-gsas/backups/$APP_NAME"
+#             TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+            
+#             # 1. Ensure directory exists with correct permissions
+#             echo "📁 Setting up directories..."
+#             sudo mkdir -p "$APP_DIR"
+#             sudo chown admin-gsas:admin-gsas "$APP_DIR"
+#             sudo chmod 755 "$APP_DIR"
+            
+#             mkdir -p "$BACKUP_DIR"
+            
+#             cd "$APP_DIR"
+            
+#             # 2. Backup current version
+#             echo "📦 Creating backup..."
+#             if [ -d ".git" ]; then
+#               tar czf "$BACKUP_DIR/backup_$TIMESTAMP.tar.gz" . 2>/dev/null || echo "Warning: Backup creation failed"
+#             fi
+            
+#             # 3. Update code with error handling
+#             echo "⬇️ Updating code..."
+#             if [ -d ".git" ]; then
+#               git fetch origin
+#               git reset --hard origin/main
+#             else
+#               # First time deployment
+#               git init
+#               git remote add origin https://github.com/${{ github.repository }}.git
+#               git fetch origin
+#               git reset --hard origin/main
+#             fi
+            
+#             # 4. Restore environment file from backup if exists
+#             if [ -f "$BACKUP_DIR/backup_$TIMESTAMP.tar.gz" ] && [ ! -f ".env" ]; then
+#               echo "🔄 Restoring .env from backup..."
+#               tar -xzf "$BACKUP_DIR/backup_$TIMESTAMP.tar.gz" .env 2>/dev/null || true
+#             fi
+            
+#             # 5. Secure dependency installation
+#             echo "📦 Installing dependencies securely..."
+#             rm -rf node_modules package-lock.json
+#             npm ci --only=production --audit
+            
+#             # 6. Quick security scan of node_modules
+#             echo "🔍 Scanning dependencies..."
+#             SUSPICIOUS_COUNT=$(find node_modules -name "*.js" -type f -exec grep -l "eval(\|child_process\.exec\|wget\|curl" {} \; 2>/dev/null | wc -l)
+#             if [ "$SUSPICIOUS_COUNT" -gt 10 ]; then
+#               echo "⚠️  Warning: Found $SUSPICIOUS_COUNT suspicious files"
+#             fi
+            
+#             # 7. Restart application
+#             echo "🔄 Restarting application..."
+            
+#             # Check if PM2 is installed
+#             if ! command -v pm2 &> /dev/null; then
+#               echo "📦 Installing PM2..."
+#               npm install -g pm2
+#             fi
+            
+#             # Delete old process if exists
+#             pm2 delete "$APP_NAME" 2>/dev/null || true
+            
+#             # Start new process
+#             pm2 start npm --name "$APP_NAME" -- start
+            
+#             # Save PM2 process list
+#             pm2 save
+            
+#             # 8. Setup PM2 startup on boot (if not already)
+#             pm2 startup 2>/dev/null || echo "PM2 startup already configured"
+            
+#             # 9. Cleanup old backups (keep last 7)
+#             echo "🧹 Cleaning up old backups..."
+#             cd "$BACKUP_DIR"
+#             ls -t backup_*.tar.gz 2>/dev/null | tail -n +8 | xargs -r rm -f || true
+            
+#             echo "✅ Deployment completed successfully!"
+#             echo "📊 App status:"
+#             pm2 status "$APP_NAME"
+
+name: Deploy to VPS
 on:
   push:
     branches: [main]
@@ -235,106 +350,62 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: Quick Security Check
-        run: |
-          # Quick check for obvious secrets
-          if grep -r "AKIA[0-9A-Z]\{16\}\|sk_live_[0-9a-zA-Z]\{24\}" --include="*.js" --include="*.json" . 2>/dev/null; then
-            echo "❌ SECURITY ALERT: Secrets found in code!"
-            exit 1
-          fi
-          echo "✅ Basic security check passed"
-      
       - name: Deploy to Server
         uses: appleboy/ssh-action@v0.1.5
         with:
           host: ${{ secrets.VPS_IP }}
           port: 22222
-          username: ${{ secrets.VPS_USER }}
+          username: ${{ secrets.VPS_USER }}  # Make sure this is correct
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            set -e  # Exit on any error
+            set -e
             
-            echo "🔒 Starting secure deployment..."
-            
-            # Configuration
             APP_NAME="orrel-admin-backend"
             APP_DIR="/srv/$APP_NAME"
-            BACKUP_DIR="/home/admin-gsas/backups/$APP_NAME"
-            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+            BACKUP_DIR="/home/admin-gsas/backups"
             
-            # 1. Ensure directory exists with correct permissions
-            echo "📁 Setting up directories..."
-            sudo mkdir -p "$APP_DIR"
-            sudo chown admin-gsas:admin-gsas "$APP_DIR"
-            sudo chmod 755 "$APP_DIR"
-            
+            # Create backup directory
             mkdir -p "$BACKUP_DIR"
             
             cd "$APP_DIR"
             
-            # 2. Backup current version
-            echo "📦 Creating backup..."
-            if [ -d ".git" ]; then
-              tar czf "$BACKUP_DIR/backup_$TIMESTAMP.tar.gz" . 2>/dev/null || echo "Warning: Backup creation failed"
-            fi
+            # Backup current
+            echo "Creating backup..."
+            tar czf "$BACKUP_DIR/${APP_NAME}_$(date +%s).tar.gz" . 2>/dev/null || true
             
-            # 3. Update code with error handling
-            echo "⬇️ Updating code..."
-            if [ -d ".git" ]; then
-              git fetch origin
-              git reset --hard origin/main
-            else
-              # First time deployment
-              git init
-              git remote add origin https://github.com/${{ github.repository }}.git
-              git fetch origin
-              git reset --hard origin/main
-            fi
+            # Update code
+            echo "Pulling latest code..."
+            git fetch origin
+            git reset --hard origin/main
             
-            # 4. Restore environment file from backup if exists
-            if [ -f "$BACKUP_DIR/backup_$TIMESTAMP.tar.gz" ] && [ ! -f ".env" ]; then
-              echo "🔄 Restoring .env from backup..."
-              tar -xzf "$BACKUP_DIR/backup_$TIMESTAMP.tar.gz" .env 2>/dev/null || true
-            fi
-            
-            # 5. Secure dependency installation
-            echo "📦 Installing dependencies securely..."
-            rm -rf node_modules package-lock.json
+            # Secure npm install
+            echo "Installing dependencies..."
+            rm -rf node_modules
             npm ci --only=production --audit
             
-            # 6. Quick security scan of node_modules
-            echo "🔍 Scanning dependencies..."
-            SUSPICIOUS_COUNT=$(find node_modules -name "*.js" -type f -exec grep -l "eval(\|child_process\.exec\|wget\|curl" {} \; 2>/dev/null | wc -l)
-            if [ "$SUSPICIOUS_COUNT" -gt 10 ]; then
-              echo "⚠️  Warning: Found $SUSPICIOUS_COUNT suspicious files"
-            fi
-            
-            # 7. Restart application
-            echo "🔄 Restarting application..."
-            
-            # Check if PM2 is installed
+            # Check if PM2 is installed - FIXED SYNTAX
             if ! command -v pm2 &> /dev/null; then
-              echo "📦 Installing PM2..."
+              echo "Installing PM2..."
               npm install -g pm2
             fi
             
             # Delete old process if exists
             pm2 delete "$APP_NAME" 2>/dev/null || true
             
-            # Start new process
+            # Start new process - FIXED: -- start (with space)
             pm2 start npm --name "$APP_NAME" -- start
             
             # Save PM2 process list
             pm2 save
             
-            # 8. Setup PM2 startup on boot (if not already)
+            # Setup PM2 startup on boot (if not already)
             pm2 startup 2>/dev/null || echo "PM2 startup already configured"
             
-            # 9. Cleanup old backups (keep last 7)
-            echo "🧹 Cleaning up old backups..."
+            # Cleanup old backups (keep last 7) - FIXED PATH
+            echo "Cleaning up old backups..."
             cd "$BACKUP_DIR"
-            ls -t backup_*.tar.gz 2>/dev/null | tail -n +8 | xargs -r rm -f || true
+            ls -t ${APP_NAME}_*.tar.gz 2>/dev/null | tail -n +8 | xargs -r rm -f || true
             
-            echo "✅ Deployment completed successfully!"
-            echo "📊 App status:"
+            echo "Deployment completed successfully!"
+            echo "App status:"
             pm2 status "$APP_NAME"
