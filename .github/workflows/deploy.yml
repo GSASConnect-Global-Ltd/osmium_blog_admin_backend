@@ -540,6 +540,137 @@
 #               echo "⚠️  Application may need manual checking"
 #             fi
 
+# name: Deploy to VPS
+# on:
+#   push:
+#     branches: [main]
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v3
+      
+#       - name: Deploy to Server
+#         uses: appleboy/ssh-action@v0.1.5
+#         with:
+#           host: ${{ secrets.VPS_IP }}
+#           port: 22222
+#           username: admin-gsas
+#           key: ${{ secrets.SSH_PRIVATE_KEY }}
+#           script: |
+#             set -e  # Exit on any error
+            
+#             echo "🚀 Starting deployment..."
+            
+#             # =================================================================
+#             # CRITICAL FIX: Ensure node is in PATH for all processes
+#             # =================================================================
+#             # Create symlink to make node available system-wide
+#             sudo ln -sf "/home/admin-gsas/.nvm/versions/node/v24.13.0/bin/node" /usr/bin/node 2>/dev/null || true
+            
+#             # Also add to /usr/local/bin (common alternative)
+#             sudo ln -sf "/home/admin-gsas/.nvm/versions/node/v24.13.0/bin/node" /usr/local/bin/node 2>/dev/null || true
+            
+#             # Set PATH for this session and all child processes
+#             export PATH="/home/admin-gsas/.nvm/versions/node/v24.13.0/bin:$PATH"
+            
+#             # Verify
+#             echo "Node.js version: $(node --version)"
+#             echo "npm version: $(npm --version)"
+#             echo "Node path: $(which node)"
+#             # =================================================================
+            
+#             # Configuration
+#             APP_NAME="orrel-admin-backend"
+#             APP_DIR="/srv/$APP_NAME"
+#             BACKUP_DIR="/home/admin-gsas/backups"
+            
+#             # Create backup directory
+#             mkdir -p "$BACKUP_DIR"
+            
+#             # Navigate to app directory
+#             cd "$APP_DIR"
+#             echo "Working directory: $(pwd)"
+            
+#             # Backup current version
+#             echo "📦 Creating backup..."
+#             TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+#             tar czf "$BACKUP_DIR/${APP_NAME}_backup_$TIMESTAMP.tar.gz" . 2>/dev/null || echo "No files to backup (first deployment?)"
+            
+#             # Update code from GitHub
+#             echo "⬇️ Pulling latest code..."
+#             if [ -d ".git" ]; then
+#               git fetch origin
+#               git reset --hard origin/main
+#               echo "✅ Code updated successfully"
+#             else
+#               echo "First deployment - initializing git..."
+#               git init
+#               git remote add origin https://github.com/${{ github.repository }}.git
+#               git fetch origin
+#               git reset --hard origin/main
+#             fi
+            
+#             # Restore .env file from backup if needed
+#             if [ ! -f ".env" ] && [ -f "$BACKUP_DIR/${APP_NAME}_backup_$TIMESTAMP.tar.gz" ]; then
+#               echo "🔧 Restoring .env from backup..."
+#               tar -xzf "$BACKUP_DIR/${APP_NAME}_backup_$TIMESTAMP.tar.gz" .env 2>/dev/null || echo "No .env in backup"
+#             fi
+            
+#             # Install dependencies
+#             echo "📦 Installing dependencies..."
+#             rm -rf node_modules package-lock.json
+            
+#             # Use npm ci with production flag
+#             npm ci --only=production --audit
+            
+#             echo "✅ Dependencies installed"
+            
+#             # Setup PM2 process manager
+#             echo "⚙️ Setting up PM2..."
+#             if ! command -v pm2 &> /dev/null; then
+#               echo "Installing PM2..."
+#               npm install -g pm2
+#             fi
+            
+#             # Restart application
+#             echo "🔄 Restarting application..."
+            
+#             # Delete existing process if running
+#             pm2 delete "$APP_NAME" 2>/dev/null || echo "No existing process to delete"
+            
+#             # Start new process
+#             # IMPORTANT: Check your package.json for the correct start command
+#             # Common options:
+#             # 1. If package.json has "start" script: npm run start
+#             # 2. If main file is server.js: node server.js
+#             # 3. If using a specific script: npm run prod
+            
+#             pm2 start npm --name "$APP_NAME" -- run start
+            
+#             # Save PM2 configuration
+#             pm2 save
+            
+#             # Setup PM2 to start on boot
+#             echo "🔧 Setting up startup configuration..."
+#             pm2 startup 2>/dev/null || echo "PM2 startup already configured"
+            
+#             # Cleanup old backups (keep last 5)
+#             echo "🧹 Cleaning up old backups..."
+#             cd "$BACKUP_DIR"
+#             ls -t ${APP_NAME}_backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f || echo "No old backups to clean"
+            
+#             # Final status
+#             echo ""
+#             echo "🎉 Deployment completed successfully!"
+#             echo ""
+#             echo "📊 Application Status:"
+#             pm2 status "$APP_NAME"
+#             echo ""
+#             echo "📝 Recent logs (last 3 lines):"
+#             pm2 logs "$APP_NAME" --lines 3 --silent 2>/dev/null || echo "No logs available yet"
+
 name: Deploy to VPS
 on:
   push:
@@ -564,21 +695,11 @@ jobs:
             echo "🚀 Starting deployment..."
             
             # =================================================================
-            # CRITICAL FIX: Ensure node is in PATH for all processes
+            # CRITICAL FIX: Ensure node is in PATH
             # =================================================================
-            # Create symlink to make node available system-wide
             sudo ln -sf "/home/admin-gsas/.nvm/versions/node/v24.13.0/bin/node" /usr/bin/node 2>/dev/null || true
-            
-            # Also add to /usr/local/bin (common alternative)
             sudo ln -sf "/home/admin-gsas/.nvm/versions/node/v24.13.0/bin/node" /usr/local/bin/node 2>/dev/null || true
-            
-            # Set PATH for this session and all child processes
             export PATH="/home/admin-gsas/.nvm/versions/node/v24.13.0/bin:$PATH"
-            
-            # Verify
-            echo "Node.js version: $(node --version)"
-            echo "npm version: $(npm --version)"
-            echo "Node path: $(which node)"
             # =================================================================
             
             # Configuration
@@ -596,7 +717,7 @@ jobs:
             # Backup current version
             echo "📦 Creating backup..."
             TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-            tar czf "$BACKUP_DIR/${APP_NAME}_backup_$TIMESTAMP.tar.gz" . 2>/dev/null || echo "No files to backup (first deployment?)"
+            tar czf "$BACKUP_DIR/${APP_NAME}_backup_$TIMESTAMP.tar.gz" . 2>/dev/null || echo "No files to backup"
             
             # Update code from GitHub
             echo "⬇️ Pulling latest code..."
@@ -620,10 +741,17 @@ jobs:
             
             # Install dependencies
             echo "📦 Installing dependencies..."
-            rm -rf node_modules package-lock.json
             
-            # Use npm ci with production flag
-            npm ci --only=production --audit
+            # Check if package-lock.json exists
+            if [ ! -f "package-lock.json" ]; then
+              echo "⚠️ package-lock.json not found. Generating it..."
+              rm -rf node_modules
+              npm install --package-lock-only --omit=dev
+            fi
+            
+            # Clean install with existing package-lock.json
+            rm -rf node_modules
+            npm ci --omit=dev --audit
             
             echo "✅ Dependencies installed"
             
@@ -641,12 +769,6 @@ jobs:
             pm2 delete "$APP_NAME" 2>/dev/null || echo "No existing process to delete"
             
             # Start new process
-            # IMPORTANT: Check your package.json for the correct start command
-            # Common options:
-            # 1. If package.json has "start" script: npm run start
-            # 2. If main file is server.js: node server.js
-            # 3. If using a specific script: npm run prod
-            
             pm2 start npm --name "$APP_NAME" -- run start
             
             # Save PM2 configuration
@@ -667,6 +789,3 @@ jobs:
             echo ""
             echo "📊 Application Status:"
             pm2 status "$APP_NAME"
-            echo ""
-            echo "📝 Recent logs (last 3 lines):"
-            pm2 logs "$APP_NAME" --lines 3 --silent 2>/dev/null || echo "No logs available yet"
