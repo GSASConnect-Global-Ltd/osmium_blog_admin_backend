@@ -339,6 +339,77 @@
 #             echo "📊 App status:"
 #             pm2 status "$APP_NAME"
 
+# name: Deploy to VPS
+# on:
+#   push:
+#     branches: [main]
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v3
+      
+#       - name: Deploy to Server
+#         uses: appleboy/ssh-action@v0.1.5
+#         with:
+#           host: ${{ secrets.VPS_IP }}
+#           port: 22222
+#           username: ${{ secrets.VPS_USER }}  # Make sure this is correct
+#           key: ${{ secrets.SSH_PRIVATE_KEY }}
+#           script: |
+#             set -e
+            
+#             APP_NAME="orrel-admin-backend"
+#             APP_DIR="/srv/$APP_NAME"
+#             BACKUP_DIR="/home/admin-gsas/backups"
+            
+#             # Create backup directory
+#             mkdir -p "$BACKUP_DIR"
+            
+#             cd "$APP_DIR"
+            
+#             # Backup current
+#             echo "Creating backup..."
+#             tar czf "$BACKUP_DIR/${APP_NAME}_$(date +%s).tar.gz" . 2>/dev/null || true
+            
+#             # Update code
+#             echo "Pulling latest code..."
+#             git fetch origin
+#             git reset --hard origin/main
+            
+#             # Secure npm install
+#             echo "Installing dependencies..."
+#             rm -rf node_modules
+#             npm ci --only=production --audit
+            
+#             # Check if PM2 is installed - FIXED SYNTAX
+#             if ! command -v pm2 &> /dev/null; then
+#               echo "Installing PM2..."
+#               npm install -g pm2
+#             fi
+            
+#             # Delete old process if exists
+#             pm2 delete "$APP_NAME" 2>/dev/null || true
+            
+#             # Start new process - FIXED: -- start (with space)
+#             pm2 start npm --name "$APP_NAME" -- start
+            
+#             # Save PM2 process list
+#             pm2 save
+            
+#             # Setup PM2 startup on boot (if not already)
+#             pm2 startup 2>/dev/null || echo "PM2 startup already configured"
+            
+#             # Cleanup old backups (keep last 7) - FIXED PATH
+#             echo "Cleaning up old backups..."
+#             cd "$BACKUP_DIR"
+#             ls -t ${APP_NAME}_*.tar.gz 2>/dev/null | tail -n +8 | xargs -r rm -f || true
+            
+#             echo "Deployment completed successfully!"
+#             echo "App status:"
+#             pm2 status "$APP_NAME"
+
 name: Deploy to VPS
 on:
   push:
@@ -355,57 +426,115 @@ jobs:
         with:
           host: ${{ secrets.VPS_IP }}
           port: 22222
-          username: ${{ secrets.VPS_USER }}  # Make sure this is correct
+          username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            set -e
+            set -e  # Exit immediately on any error
             
+            # =================================================================
+            # CONFIGURATION - SET ABSOLUTE PATHS
+            # =================================================================
+            NODE_PATH="/home/admin-gsas/.nvm/versions/node/v24.13.0/bin/node"
+            NPM_PATH="/home/admin-gsas/.nvm/versions/node/v24.13.0/bin/npm"
             APP_NAME="orrel-admin-backend"
             APP_DIR="/srv/$APP_NAME"
             BACKUP_DIR="/home/admin-gsas/backups"
+            # =================================================================
             
-            # Create backup directory
+            echo "🚀 Starting deployment of $APP_NAME..."
+            echo "Using Node.js: $($NODE_PATH --version)"
+            echo "Using npm: $($NPM_PATH --version)"
+            
+            # 1. Create backup directory if it doesn't exist
             mkdir -p "$BACKUP_DIR"
             
+            # 2. Navigate to app directory
             cd "$APP_DIR"
+            echo "Working in: $(pwd)"
             
-            # Backup current
-            echo "Creating backup..."
-            tar czf "$BACKUP_DIR/${APP_NAME}_$(date +%s).tar.gz" . 2>/dev/null || true
+            # 3. Create backup of current version
+            echo "📦 Creating backup..."
+            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+            tar czf "$BACKUP_DIR/${APP_NAME}_backup_$TIMESTAMP.tar.gz" . 2>/dev/null || echo "Note: No files to backup (first deployment?)"
             
-            # Update code
-            echo "Pulling latest code..."
-            git fetch origin
-            git reset --hard origin/main
+            # 4. Update code from GitHub
+            echo "⬇️ Pulling latest code..."
             
-            # Secure npm install
-            echo "Installing dependencies..."
-            rm -rf node_modules
-            npm ci --only=production --audit
-            
-            # Check if PM2 is installed - FIXED SYNTAX
-            if ! command -v pm2 &> /dev/null; then
-              echo "Installing PM2..."
-              npm install -g pm2
+            # Check if this is a git repository
+            if [ -d ".git" ]; then
+              git fetch origin
+              git reset --hard origin/main
+              echo "Code updated successfully"
+            else
+              # First time deployment - clone the repository
+              echo "First deployment detected, initializing git repository..."
+              git init
+              git remote add origin https://github.com/${{ github.repository }}.git
+              git fetch origin
+              git reset --hard origin/main
             fi
             
-            # Delete old process if exists
-            pm2 delete "$APP_NAME" 2>/dev/null || true
+            # 5. Restore .env file from backup if it exists
+            if [ ! -f ".env" ] && [ -f "$BACKUP_DIR/${APP_NAME}_backup_$TIMESTAMP.tar.gz" ]; then
+              echo "🔧 Restoring .env from backup..."
+              tar -xzf "$BACKUP_DIR/${APP_NAME}_backup_$TIMESTAMP.tar.gz" .env 2>/dev/null || echo "No .env in backup"
+            fi
             
-            # Start new process - FIXED: -- start (with space)
-            pm2 start npm --name "$APP_NAME" -- start
+            # 6. Install/update dependencies
+            echo "📦 Installing dependencies..."
+            rm -rf node_modules package-lock.json
+            $NPM_PATH ci --only=production --audit
             
-            # Save PM2 process list
+            # 7. Setup PM2 process manager
+            echo "⚙️ Setting up PM2..."
+            
+            # Check if PM2 is installed
+            if ! command -v pm2 &> /dev/null; then
+              echo "Installing PM2 globally..."
+              $NPM_PATH install -g pm2
+            fi
+            
+            # 8. Restart application with PM2
+            echo "🔄 Restarting application..."
+            
+            # Stop existing process if running
+            pm2 delete "$APP_NAME" 2>/dev/null || echo "No existing process to delete"
+            
+            # Start new process
+            # Adjust the start command based on your package.json
+            # Option A: If package.json has "start" script
+            pm2 start $NPM_PATH --name "$APP_NAME" -- run start
+            
+            # Option B: If you need to run a specific file
+            # pm2 start $NODE_PATH --name "$APP_NAME" -- server.js
+            
+            # 9. Save PM2 configuration
             pm2 save
             
-            # Setup PM2 startup on boot (if not already)
+            # 10. Setup PM2 to start on boot (if not already)
+            echo "🔧 Setting up startup configuration..."
             pm2 startup 2>/dev/null || echo "PM2 startup already configured"
             
-            # Cleanup old backups (keep last 7) - FIXED PATH
-            echo "Cleaning up old backups..."
+            # 11. Cleanup old backups (keep last 5)
+            echo "🧹 Cleaning up old backups..."
             cd "$BACKUP_DIR"
-            ls -t ${APP_NAME}_*.tar.gz 2>/dev/null | tail -n +8 | xargs -r rm -f || true
+            ls -t ${APP_NAME}_backup_*.tar.gz 2>/dev/null | tail -n +6 | xargs -r rm -f || echo "No old backups to clean"
             
-            echo "Deployment completed successfully!"
-            echo "App status:"
+            # 12. Verify deployment
+            echo "✅ Deployment completed!"
+            echo ""
+            echo "📊 Application Status:"
             pm2 status "$APP_NAME"
+            echo ""
+            echo "📝 Recent logs:"
+            pm2 logs "$APP_NAME" --lines 5 --silent 2>/dev/null || echo "No logs available yet"
+            
+            # 13. Health check (optional)
+            echo ""
+            echo "🏥 Running health check..."
+            sleep 3
+            if pm2 ping "$APP_NAME" 2>/dev/null; then
+              echo "✅ Application is running and responsive"
+            else
+              echo "⚠️  Application may need manual checking"
+            fi
