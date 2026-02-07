@@ -61,14 +61,57 @@
 #         fi
 
 
-name: Deploy Express App
+# name: Deploy Express App
+# on:
+#   push:
+#     branches: [main]
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+#     steps:
+#     - uses: actions/checkout@v3
+    
+#     - name: Deploy to VPS
+#       uses: appleboy/ssh-action@v0.1.5
+#       with:
+#         host: ${{ secrets.VPS_IP }}
+#         port: 22222
+#         username: gsas-admin
+#         key: ${{ secrets.SSH_PRIVATE_KEY }}
+#         script: |
+#           cd /srv/orrel-admin-backend
+#           git pull origin main
+#           npm install --production
+#           # [ -f .env.dev ] && cp .env.dev .env
+#           pm2 restart orrel-admin-backend 2>/dev/null || \
+#           pm2 start npm --name 'orrel-admin-backend' -- start
+#           pm2 save
+#           echo '✅ Orrel Admin Express app deployed!'
+
+
+name: Deploy Express App Securely
 on:
   push:
     branches: [main]
 
 jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Scan for secrets
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          config-path: .gitleaks.toml
+          
+      - name: NPM Audit
+        run: npm audit --production
+
   deploy:
     runs-on: ubuntu-latest
+    needs: security-scan
     steps:
     - uses: actions/checkout@v3
     
@@ -77,14 +120,104 @@ jobs:
       with:
         host: ${{ secrets.VPS_IP }}
         port: 22222
-        username: gsas-admin
+        username: admin-gsas  # ✅ CORRECTED
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
-          cd /srv/orrel-admin-backend
-          git pull origin main
-          npm install --production
-          # [ -f .env.dev ] && cp .env.dev .env
-          pm2 restart orrel-admin-backend 2>/dev/null || \
-          pm2 start npm --name 'orrel-admin-backend' -- start
+          set -e  # Exit on error
+          
+          # === SECURITY CHECKS ===
+          echo "🔒 Starting secure deployment..."
+          
+          # Define paths
+          APP_NAME="orrel-admin-backend"
+          APP_DIR="/srv/$APP_NAME"
+          BACKUP_DIR="/home/admin-gsas/backups"
+          LOG_DIR="/var/log/$APP_NAME"
+          
+          # 1. Verify directory exists
+          if [ ! -d "$APP_DIR" ]; then
+            echo "❌ App directory not found. Creating..."
+            sudo mkdir -p "$APP_DIR"
+            sudo chown admin-gsas:admin-gsas "$APP_DIR"
+          fi
+          
+          cd "$APP_DIR"
+          
+          # 2. Backup current version FIRST
+          echo "📦 Creating backup..."
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          sudo mkdir -p "$BACKUP_DIR"
+          sudo tar czf "$BACKUP_DIR/${APP_NAME}_$TIMESTAMP.tar.gz" . 2>/dev/null || true
+          
+          # 3. Create isolated deployment
+          echo "🏗️ Setting up isolated deployment..."
+          DEPLOY_TEMP="/tmp/${APP_NAME}_deploy_$TIMESTAMP"
+          mkdir -p "$DEPLOY_TEMP"
+          
+          # 4. Copy existing configs to preserve
+          if [ -f ".env" ]; then
+            cp .env "$DEPLOY_TEMP/"
+          fi
+          
+          # 5. Pull fresh code to temp location
+          echo "⬇️ Pulling fresh code..."
+          cd "$DEPLOY_TEMP"
+          git clone https://github.com/GSASConnect-Global-Ltd/osmium_blog_admin_backend.git . --branch main --depth 1
+          
+          # 6. Restore environment config
+          if [ -f "../.env" ]; then
+            cp "../.env" .
+          fi
+          
+          # 7. SECURE npm install with audit
+          echo "🔍 Running security checks..."
+          npm ci --only=production --audit
+          
+          # 8. Verify no suspicious packages
+          echo "🔎 Scanning for suspicious files..."
+          SUSPICIOUS_FILES=$(find node_modules -name "*.js" -type f -exec grep -l "eval(\|child_process\|spawn\|wget\|curl" {} \; 2>/dev/null | head -5)
+          if [ ! -z "$SUSPICIOUS_FILES" ]; then
+            echo "❌ Suspicious files detected!"
+            echo "$SUSPICIOUS_FILES"
+            exit 1
+          fi
+          
+          # 9. Move to production location (atomic operation)
+          echo "🚚 Deploying to production..."
+          cd "$APP_DIR/.."
+          sudo rm -rf "${APP_DIR}_old" 2>/dev/null || true
+          sudo mv "$APP_DIR" "${APP_DIR}_old"
+          sudo mv "$DEPLOY_TEMP" "$APP_DIR"
+          sudo chown -R admin-gsas:admin-gsas "$APP_DIR"
+          
+          # 10. Setup log directory
+          sudo mkdir -p "$LOG_DIR"
+          sudo chown admin-gsas:admin-gsas "$LOG_DIR"
+          
+          # 11. Restart with PM2
+          echo "🔄 Restarting application..."
+          cd "$APP_DIR"
+          
+          # Check if PM2 is installed
+          if ! command -v pm2 &> /dev/null; then
+            echo "📦 Installing PM2..."
+            npm install -g pm2
+          fi
+          
+          # Restart or start
+          pm2 delete "$APP_NAME" 2>/dev/null || true
+          pm2 start npm --name "$APP_NAME" -- start
           pm2 save
-          echo '✅ Orrel Admin Express app deployed!'
+          pm2 startup 2>/dev/null || true
+          
+          # 12. Cleanup old backups (keep last 5)
+          echo "🧹 Cleaning up old backups..."
+          cd "$BACKUP_DIR"
+          ls -t ${APP_NAME}_*.tar.gz | tail -n +6 | xargs -r rm
+          
+          # 13. Remove old deployment
+          sudo rm -rf "${APP_DIR}_old" 2>/dev/null || true
+          
+          echo "✅ Deployment completed successfully!"
+          echo "📊 Application status:"
+          pm2 status
