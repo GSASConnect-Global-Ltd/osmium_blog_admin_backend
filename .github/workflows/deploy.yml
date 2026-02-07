@@ -426,6 +426,7 @@ jobs:
         with:
           host: ${{ secrets.VPS_IP }}
           port: 22222
+          timeout: 30s
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
