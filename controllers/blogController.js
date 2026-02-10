@@ -60,17 +60,70 @@ export const getBlogBySlug = async (req, res) => {
 };
 
 // -------------------- UPDATE BLOG BY SLUG --------------------
+// export const updateBlogBySlug = async (req, res) => {
+//   try {
+//     const { slug } = req.params;
+//     const { title, summary, author, date, content, category } = req.body;
+//     // const uploadedImages = req.files
+//     //   ? req.files.map((file) => `/uploads/${file.filename}`)
+//     //   : [];
+
+//     const imageSlots = req.body.imageSlots
+//   ? JSON.parse(req.body.imageSlots)
+//   : [];
+
+// if (req.files) {
+//   req.files.forEach((file, i) => {
+//     const slot = imageSlots[i];
+//     if (slot !== undefined) {
+//       blog.images[slot] = `/uploads/${file.filename}`;
+//     }
+//   });
+// }
+
+
+//     const blog = await Blog.findOne({ slug });
+//     if (!blog) return res.status(404).json({ message: "Blog not found" });
+
+//     if (title) {
+//       blog.title = title;
+//       blog.slug = slugify(title, { lower: true, strict: true });
+//     }
+//     if (summary) blog.summary = summary;
+//     if (author) blog.author = author;
+//     if (date) blog.date = date;
+//     if (content) blog.content = content;
+//     if (category) blog.category = category;
+
+//     blog.images = [
+//       uploadedImages[0] || blog.images[0] || null,
+//       uploadedImages[1] || blog.images[1] || null,
+//       uploadedImages[2] || blog.images[2] || null,
+//     ];
+
+//     await blog.save();
+
+//     // ✅ Return only the updated blog
+//     res.json(blog);
+//   } catch (error) {
+//     console.error("❌ Error updating blog:", error.message);
+//     res.status(500).json({ message: "Server error", error: error.message });
+//   }
+// };
+
+
+
+
 export const updateBlogBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
     const { title, summary, author, date, content, category } = req.body;
-    const uploadedImages = req.files
-      ? req.files.map((file) => `/uploads/${file.filename}`)
-      : [];
 
+    // 🔹 Find blog FIRST
     const blog = await Blog.findOne({ slug });
     if (!blog) return res.status(404).json({ message: "Blog not found" });
 
+    // 🔹 Update text fields
     if (title) {
       blog.title = title;
       blog.slug = slugify(title, { lower: true, strict: true });
@@ -81,21 +134,30 @@ export const updateBlogBySlug = async (req, res) => {
     if (content) blog.content = content;
     if (category) blog.category = category;
 
-    blog.images = [
-      uploadedImages[0] || blog.images[0] || null,
-      uploadedImages[1] || blog.images[1] || null,
-      uploadedImages[2] || blog.images[2] || null,
-    ];
+    // 🔹 Handle image slot updates
+    const imageSlots = req.body.imageSlots
+      ? JSON.parse(req.body.imageSlots)
+      : [];
+
+    if (req.files && imageSlots.length) {
+      req.files.forEach((file, i) => {
+        const slot = imageSlots[i];
+
+        if (slot !== undefined) {
+          blog.images[slot] = `/uploads/${file.filename}`;
+        }
+      });
+    }
 
     await blog.save();
 
-    // ✅ Return only the updated blog
     res.json(blog);
   } catch (error) {
     console.error("❌ Error updating blog:", error.message);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
 
 // -------------------- DELETE BLOG BY SLUG --------------------
 export const deleteBlogBySlug = async (req, res) => {

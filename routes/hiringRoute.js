@@ -5,6 +5,8 @@ import {
   getDashboardStats,
   createJob,
   applyJob,
+  updateJob,
+  getAllApplications,
 } from "../controllers/hiringController.js";
 
 const router = express.Router();
@@ -16,5 +18,7 @@ router.post("/", createJob);
 
 // Job applications
 router.post("/:id", applyJob);
+router.put("/:id", updateJob);
+router.get("/applications", getAllApplications);
 
 export default router;

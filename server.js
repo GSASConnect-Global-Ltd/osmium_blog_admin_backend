@@ -14,6 +14,7 @@ import authRoutes from "./routes/authRoute.js";
 import protectedRoutes from "./routes/protectedRoute.js";
 import blogRoutes from "./routes/blogRoute.js";
 import hiringRoutes from "./routes/hiringRoute.js";
+import teamRoutes from "./routes/teamRoute.js";
 
 dotenv.config();
 
@@ -103,6 +104,7 @@ app.post("/api/test-mail", async (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/blogs", blogRoutes);
 app.use("/api/hirings", hiringRoutes);
+app.use("/api/team", teamRoutes);
 
 // Protected routes
 app.use("/api", protectedRoutes);

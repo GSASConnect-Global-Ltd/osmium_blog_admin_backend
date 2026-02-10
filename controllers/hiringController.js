@@ -193,3 +193,44 @@ export const applyJob = [
     }
   },
 ];
+
+// PUT /api/hirings/:id (edit job)
+export const updateJob = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const updatedJob = await Job.findByIdAndUpdate(
+      id,
+      req.body,
+      {
+        new: true,        // return updated document
+        runValidators: true, // enforce schema validation
+      }
+    );
+
+    if (!updatedJob) {
+      return res.status(404).json({ message: "Job not found" });
+    }
+
+    res.json(updatedJob);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error updating job" });
+  }
+};
+
+// GET /api/hirings/applications (HR/Admin)
+export const getAllApplications = async (req, res) => {
+  try {
+    const applications = await Application.find()
+      .populate("job", "title department type location")
+      .sort({ createdAt: -1 });
+
+    res.json(applications);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error fetching applications" });
+  }
+};
+
+
