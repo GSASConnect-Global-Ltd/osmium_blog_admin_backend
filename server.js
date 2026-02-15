@@ -15,6 +15,8 @@ import protectedRoutes from "./routes/protectedRoute.js";
 import blogRoutes from "./routes/blogRoute.js";
 import hiringRoutes from "./routes/hiringRoute.js";
 import teamRoutes from "./routes/teamRoute.js";
+import publicationRoutes from "./routes/publicationRoute.js";
+
 
 dotenv.config();
 
@@ -67,7 +69,7 @@ app.use(
 app.use(cookieParser());
 
 // Static folder for uploads (CVs, documents, images)
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+// app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Body parsers
 app.use(express.json());
@@ -105,6 +107,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/blogs", blogRoutes);
 app.use("/api/hirings", hiringRoutes);
 app.use("/api/team", teamRoutes);
+app.use("/api/publications", publicationRoutes);
 
 // Protected routes
 app.use("/api", protectedRoutes);

@@ -10,6 +10,7 @@ const teamMemberSchema = new mongoose.Schema(
     name: { type: String, required: true },
     post: { type: String, required: true }, // position or role
     photo: { type: String }, // filename or URL
+    photoId: { type: String }, // for Cloudinary public_id  
      bio: { type: String },
     socials: [socialSchema], // array of social links
   },

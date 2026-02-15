@@ -48,7 +48,9 @@ export const createTeamMember = async (req, res) => {
       post,
       bio,
       socials: socialsArray,
-      photo: req.file ? req.file.filename : undefined,
+      photo: req.file ? req.file.path : undefined,
+      photoId: req.file ? req.file.filename : undefined,
+
     });
 
     await member.save();
@@ -82,8 +84,12 @@ export const updateTeamMember = async (req, res) => {
       }
     }
 
-    // Update photo only if new file uploaded
-    if (req.file) updateData.photo = req.file.filename;
+    // Update photo if new file uploaded
+    if (req.file) {
+      updateData.photo = req.file.path;
+      updateData.photoId = req.file.filename;
+    }
+
 
     const updated = await TeamMember.findByIdAndUpdate(id, updateData, {
       new: true,

@@ -8,12 +8,19 @@ import {
   getDashboardStats,
   getRecentBlogs,
 } from "../controllers/blogController.js";
-import { uploadBlogImages } from "../middleware/upload.js";
 
+
+// import { uploadBlogImages } from "../middleware/upload.js";
+
+import { getCloudinaryParser } from "../middleware/cloudUpload.js";
+const blogParser = getCloudinaryParser("blog_images");
 const router = express.Router();
 
 // Create blog (with 3 images)
-router.post("/", uploadBlogImages, createBlog);
+// Old local storage upload: uploadBlogImages
+// router.post("/", parser.array("images", 3), createBlog);
+router.post("/", blogParser.array("images", 3), createBlog);
+
 
 // Get all blogs
 router.get("/", getBlogs);
@@ -28,7 +35,12 @@ router.get("/recent", getRecentBlogs);
 router.get("/:slug", getBlogBySlug);
 
 // Update blog by slug
-router.put("/:slug", uploadBlogImages, updateBlogBySlug);
+// Old local storage upload: uploadBlogImages
+// router.put("/:slug", parser.array("images", 3), updateBlogBySlug);
+
+
+router.put("/:slug", blogParser.array("images", 3), updateBlogBySlug);
+
 
 // Delete blog by slug
 router.delete("/:slug", deleteBlogBySlug);
