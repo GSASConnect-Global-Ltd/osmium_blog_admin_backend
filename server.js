@@ -16,6 +16,7 @@ import blogRoutes from "./routes/blogRoute.js";
 import hiringRoutes from "./routes/hiringRoute.js";
 import teamRoutes from "./routes/teamRoute.js";
 import publicationRoutes from "./routes/publicationRoute.js";
+import academicRoutes from "./routes/academicRoute.js";
 
 
 dotenv.config();
@@ -108,15 +109,24 @@ app.use("/api/blogs", blogRoutes);
 app.use("/api/hirings", hiringRoutes);
 app.use("/api/team", teamRoutes);
 app.use("/api/publications", publicationRoutes);
+app.use("api/academic", academicRoutes);
 
 // Protected routes
 app.use("/api", protectedRoutes);
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error("❌ Global error:", err.stack);
-  res.status(500).json({ message: "Something went wrong!" });
+  console.error("❌ Global error handler triggered");
+  console.error("❌ Error type:", typeof err);
+  console.error("❌ Error object:", err);
+  console.error("❌ Error message:", err?.message);
+  console.error("❌ Error stack:", err?.stack);
+
+  res.status(err?.status || 500).json({
+    message: err?.message || "Something went wrong!",
+  });
 });
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
